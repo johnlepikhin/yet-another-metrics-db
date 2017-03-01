@@ -1,0 +1,81 @@
+#!/usr/bin/perl
+
+use Time::HiRes qw(setitimer ITIMER_REAL);
+
+use warnings;
+use strict;
+
+use Getopt::Long;
+use Pod::Usage;
+use Config::Metrics;
+use Storage;
+use Data::Dumper;
+
+my $opt_start_date;
+my $opt_end_date;
+my $opt_help;
+my $opt_man;
+
+GetOptions('start-timestamp-ms|s=i' => \$opt_start_date
+           , 'end-timestamp-ms|e=i' => \$opt_end_date
+           , 'help|?' => \$opt_help
+           , 'man|?' => \$opt_man
+    );
+
+pod2usage(-exitval => 0, -verbose => 2) if $opt_man;
+pod2usage(1) if $opt_help;
+
+sub fatal ($) {
+    printf STDERR "\n$_[0]\n\n";
+    pod2usage(1);
+}
+
+if (!defined $opt_start_date || !defined $opt_end_date) {
+    fatal "--start-timestamp-ms and --end-timestamp-ms are mandatory";
+}
+
+my $config = Config::Metrics::read('datainfo.ini') || die Config::IniPlain::errstr();
+#Config::Metrics::check($config) || die Config::IniPlain::errstr();
+
+# sample reading
+my $period = Storage::read_period($config, $opt_start_date, $opt_end_date);
+
+foreach my $time (sort keys %$period) {
+    foreach my $key (sort keys %{$period->{$time}}) {
+        print "$time: $key=$period->{$time}->{$key}\n";
+    }
+}
+
+__END__
+
+=head1 NAME
+
+dump-metrics - Dump data from metrics database
+
+=head1 SYNOPSIS
+
+dump-metrics --start-timestamp-ms=<N> --end-timestamp-ms=<N>
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--start-timestamp-ms=<N> > or B<-s <N> >
+
+Start UNIX timestamp (in milliseconds!) to be extracted
+
+=item B<--end-timestamp-ms=<N> > or B<-e <N> >
+
+End UNIX timestamp (in milliseconds!) to be extracted
+
+=back
+
+=head1 DESCRIPTION
+
+This program dumps data from metrics database in log-like human readable format.
+
+=head1 COPIRIGHT
+
+Evgenii Lepikhin <johnlepikhin@gmail.com>
+
+=cut
