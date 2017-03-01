@@ -5,6 +5,8 @@ use Time::HiRes qw(setitimer ITIMER_REAL);
 use warnings;
 use strict;
 
+use Getopt::Long;
+use Pod::Usage;
 use Config::Metrics;
 use Storage;
 
@@ -106,10 +108,65 @@ sub loop_fifo($) {
     }
 }
 
-my $config = Config::Metrics::read('datainfo.ini') || die Config::IniPlain::errstr();
+my $opt_config_path;
+my $opt_help;
+my $opt_man;
+
+GetOptions('config|c=s' => \$opt_config_path
+           , 'help|?' => \$opt_help
+           , 'man|?' => \$opt_man
+    );
+
+pod2usage(-exitval => 0, -verbose => 2) if $opt_man;
+pod2usage(1) if $opt_help;
+
+sub fatal ($) {
+    printf STDERR "\n$_[0]\n\n";
+    pod2usage(1);
+}
+
+if (!defined $opt_config_path) {
+    fatal "--config is mandatory";
+}
+
+my $config = Config::Metrics::read($opt_config_path) || die Config::IniPlain::errstr();
 
 loop_fifo($config);
 
-# sample reading
-my $period = Storage::read_period($config, 1487853670-100000, 1487853980+10000000);
-print Dumper($period);
+__END__
+
+=head1 NAME
+
+collect-metrics - Collect metrics and save to database
+
+=head1 SYNOPSIS
+
+dump-metrics --config=<config file>
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--config=<...>>
+
+Path to configuration ini file
+
+=item B<--help>
+
+Print a brief help message and exits.
+
+=item B<--man>
+
+Prints the manual page and exits.
+
+=back
+
+=head1 DESCRIPTION
+
+This program dumps data from metrics database in log-like human readable format.
+
+=head1 COPIRIGHT
+
+Evgenii Lepikhin <johnlepikhin@gmail.com>
+
+=cut

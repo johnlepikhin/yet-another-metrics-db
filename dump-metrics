@@ -11,13 +11,15 @@ use Config::Metrics;
 use Storage;
 use Data::Dumper;
 
+my $opt_config_path;
 my $opt_start_date;
 my $opt_end_date;
 my $opt_help;
 my $opt_man;
 
-GetOptions('start-timestamp-ms|s=i' => \$opt_start_date
-           , 'end-timestamp-ms|e=i' => \$opt_end_date
+GetOptions('config|c=s' => \$opt_config_path
+           , 'start-timestamp|s=i' => \$opt_start_date
+           , 'end-timestamp|e=i' => \$opt_end_date
            , 'help|?' => \$opt_help
            , 'man|?' => \$opt_man
     );
@@ -30,11 +32,11 @@ sub fatal ($) {
     pod2usage(1);
 }
 
-if (!defined $opt_start_date || !defined $opt_end_date) {
-    fatal "--start-timestamp-ms and --end-timestamp-ms are mandatory";
+if (!defined $opt_config_path || !defined $opt_start_date || !defined $opt_end_date) {
+    fatal "--config, --start-timestamp and --end-timestamp are mandatory";
 }
 
-my $config = Config::Metrics::read('datainfo.ini') || die Config::IniPlain::errstr();
+my $config = Config::Metrics::read($opt_config_path) || die Config::IniPlain::errstr();
 #Config::Metrics::check($config) || die Config::IniPlain::errstr();
 
 # sample reading
@@ -54,19 +56,31 @@ dump-metrics - Dump data from metrics database
 
 =head1 SYNOPSIS
 
-dump-metrics --start-timestamp-ms=<N> --end-timestamp-ms=<N>
+dump-metrics --config=<config file> --start-timestamp=<N> --end-timestamp=<N>
 
 =head1 OPTIONS
 
 =over 8
 
-=item B<--start-timestamp-ms=<N> > or B<-s <N> >
+=item B<--config=<...>>
+
+Path to configuration ini file
+
+=item B<--start-timestamp=<N>> or B<-s <N> >
 
 Start UNIX timestamp (in milliseconds!) to be extracted
 
-=item B<--end-timestamp-ms=<N> > or B<-e <N> >
+=item B<--end-timestamp=<N>> or B<-e <N> >
 
-End UNIX timestamp (in milliseconds!) to be extracted
+End UNIX timestamp to be extracted
+
+=item B<--help>
+
+Print a brief help message and exits.
+
+=item B<--man>
+
+Prints the manual page and exits.
 
 =back
 
