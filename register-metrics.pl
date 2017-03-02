@@ -1,25 +1,23 @@
 #!/usr/bin/perl
 
-use Time::HiRes qw(setitimer ITIMER_REAL);
-
 use warnings;
 use strict;
 
 use Getopt::Long;
 use Pod::Usage;
 use Config::Metrics;
-use Storage;
-use Data::Dumper;
 
 my $opt_config_path;
-my $opt_start_date;
-my $opt_end_date;
+my $opt_name;
+my $opt_datatype;
+my $opt_agregate_fn;
 my $opt_help;
 my $opt_man;
 
 GetOptions('config|c=s' => \$opt_config_path
-           , 'start-timestamp|s=i' => \$opt_start_date
-           , 'end-timestamp|e=i' => \$opt_end_date
+           , 'name|n=s' => \$opt_name
+           , 'datatype|t=s' => \$opt_datatype
+           , 'agregate-fn=s' => \$opt_agregate_fn
            , 'help|?' => \$opt_help
            , 'man|?' => \$opt_man
     );
@@ -32,30 +30,27 @@ sub fatal ($) {
     pod2usage(-msg => $_[0], -exitval => 1, -verbose => 1, -input => \*DATA);
 }
 
-if (!defined $opt_config_path || !defined $opt_start_date || !defined $opt_end_date) {
-    fatal "--config, --start-timestamp and --end-timestamp are mandatory";
+if (!defined $opt_config_path || !defined $opt_name || !defined $opt_datatype) {
+    fatal "--config, --name and --datatype are mandatory";
 }
 
 my $config = Config::Metrics::read($opt_config_path) || die Config::IniPlain::errstr();
 
-# sample reading
-my $period = Storage::read_period($config, $opt_start_date, $opt_end_date);
+my %values;
 
-foreach my $time (sort keys %$period) {
-    foreach my $key (sort keys %{$period->{$time}}) {
-        print "$time: $key=$period->{$time}->{$key}\n";
-    }
-}
+$values{'agregate_fn'}=$opt_agregate_fn if defined $opt_agregate_fn;
+
+Config::Metrics::add_metrics ($config, $opt_name, $opt_datatype, \%values);
 
 __DATA__
 
 =head1 NAME
 
-dump-metrics - Dump data from metrics database
+register-metrics - Add new metrica to configuration file
 
 =head1 SYNOPSIS
 
-dump-metrics --config=<config file> --start-timestamp=<N> --end-timestamp=<N>
+register-metrics --config=<config file> --name=<...> --datatype=<..> [optional values]
 
 =head1 OPTIONS
 
@@ -65,13 +60,17 @@ dump-metrics --config=<config file> --start-timestamp=<N> --end-timestamp=<N>
 
 Path to configuration ini file
 
-=item B<--start-timestamp=<N>> or B<-s <N>>
+=item B<--name>
 
-Start UNIX timestamp (in milliseconds!) to be extracted
+Metrica name
 
-=item B<--end-timestamp=<N>> or B<-e <N>>
+=item B<--datatype>
 
-End UNIX timestamp to be extracted
+Metrica datatype
+
+=item B<--agregate-fn>
+
+Metrica agregation function
 
 =item B<--help>
 

@@ -121,7 +121,7 @@ pod2usage(-exitval => 0, -verbose => 2, -input => \*DATA) if $opt_man;
 pod2usage(-exitval => 0, -verbose => 1, -input => \*DATA) if $opt_help;
 
 sub fatal ($) {
-    pod2usage(-msg => $_[0], -exitval => 1, -verbose => 1, -noperldoc => 1);
+    pod2usage(-msg => $_[0], -exitval => 1, -verbose => 1, -input => \*DATA);
 }
 
 if (!defined $opt_config_path) {

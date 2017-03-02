@@ -22,7 +22,7 @@ sub check ($) {
     my $config = shift;
 
     $config->{general}->{values}->{tick_size_ms} ||= 60000;
-    $config->{general}->{values}->{listen} ||= '/tmp/perl-collect.sock';
+    $config->{general}->{values}->{listen} || return $config->_error("Missing required parameter 'listen' in section [general]");
     $config->{general}->{values}->{tree_root} || return $config->_error("Missing required parameter 'tree_root' in section [general]");
     $config->{general}->{values}->{tree_configuration} ||= '256 256 1440';
 
@@ -76,7 +76,31 @@ sub read ($) {
     my $config = Config::IniPlain->read($file) || die Config::IniPlain::errstr();
     check($config) || die Config::IniPlain::errstr();
 
+    $config->{general}->{config_path} = $file;
+
     return $config;
+}
+
+sub add_metrics($$$$) {
+    my $config = shift;
+    my $name = shift;
+    my $datatype = shift;
+    my $values = shift;
+
+    my @keys = keys %$config;
+    print "== @keys\n";
+    
+    return if exists $config->{"metrics:$name"};
+
+    open my $fh, '>>', $config->{general}->{config_path} || die "Cannot open '$config->{general}->{config_path}': $?";
+
+    my $pairs = "datatype = $datatype\n";
+    foreach (sort keys %$values) {
+        $pairs .= "$_ = $values->{$_}\n";
+    }
+    
+    print $fh "\n[metrics:$name]\n\n$pairs\n";
+    close $fh;
 }
 
 1;
