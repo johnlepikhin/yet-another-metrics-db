@@ -3,7 +3,7 @@
 use warnings;
 use strict;
 
-
+use lib 'lib';
 use HTTP::Daemon;
 use HTTP::Status;
 use URI::QueryParam;

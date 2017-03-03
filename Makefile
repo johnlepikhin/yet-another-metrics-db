@@ -37,6 +37,6 @@ install: clean out
 	install out/dump-metrics ~/bin/
 	install out/register-metrics ~/bin/
 	install out/http-server-metrics ~/bin/
-	install second-cron ~/bin/
+	install utils/second-cron ~/bin/
 #	install -m 644 -D datainfo.ini ~/.metrics/config.ini
 

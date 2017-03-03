@@ -5,6 +5,7 @@ use Time::HiRes qw(setitimer ITIMER_REAL);
 use warnings;
 use strict;
 
+use lib 'lib';
 use Getopt::Long;
 use Pod::Usage;
 use Config::Metrics;

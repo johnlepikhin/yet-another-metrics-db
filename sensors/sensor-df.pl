@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 
+use lib '../lib';
 use Sensor;
 use strict;
 use warnings;
