@@ -9,32 +9,38 @@ use Getopt::Long;
 use Pod::Usage;
 use Config::Metrics;
 use Storage;
+use IO::Socket::UNIX;
 
 require 5.008001;
 
 use POSIX qw(mkfifo);
 
-sub open_fifo ($) {
+sub get_client ($) {
     my $config = shift;
 
-    my $fifo = $config->{general}->{values}->{listen};
+    if (!exists $config->{general}->{server_socket}) {
+        my $sock = $config->{general}->{values}->{listen};
 
-    if (!-e $fifo) {
-        mkfifo ($fifo, 0600) || die "mkfifo($fifo) failed: $!";
+        unlink $sock if length $sock > 0 && -S $sock;
+
+        my $server = IO::Socket::UNIX->new(
+            Type => SOCK_STREAM(),
+            Local => $sock,
+            Listen => 1,
+            ) || die "cannot listen socket $sock: $!";
+
+        $config->{general}->{server_socket} = $server;
     }
-
-    if (!-p $fifo) {
-        die "$fifo is not a FIFO file";
-    }
-
-    my $fh;
+    
+    my $client;
     while (1) {
-        open ($fh, '<:utf8', $fifo) && return $fh;
-        die "cannot open $fifo: $?" if (!$!{EINTR});
+        $client = $config->{general}->{server_socket}->accept();
+        return $client if $client;
+        die "cannot accept client: $?" if (!$!{EINTR});
     };
 }
 
-sub process_fifo($$$) {
+sub process_client($$$) {
     my $config = shift;
     my $fh = shift;
     my $current = shift;
@@ -71,6 +77,29 @@ sub process_fifo($$$) {
     close $fh;
 }
 
+sub update_config($) {
+    my $config = shift;
+
+    eval {
+        my $new_config = Config::Metrics::read($config->{general}->{config_path}) || die Config::IniPlain::errstr();
+
+        delete $config->{$_} foreach keys %$config;
+        $config->{$_} = $new_config->{$_} foreach keys %$new_config;
+    }
+}
+
+sub update_config_if_changed($) {
+    my $config = shift;
+
+    my @stat = stat ($config->{general}->{config_path});
+
+    return if !@stat;
+
+    return if $config->{general}->{config_size} == $stat[7] && $config->{general}->{config_mtime} == $stat[9];
+
+    update_config ($config);
+}
+
 sub clean_current($$) {
     my $config = shift;
     my $current = shift;
@@ -95,6 +124,7 @@ sub loop_fifo($) {
     my %current;
 
     $SIG{ALRM} = sub {
+        update_config_if_changed($config);
         Storage::save_current($config, \%current);
         clean_current($config, \%current);
     };
@@ -103,8 +133,8 @@ sub loop_fifo($) {
     setitimer(ITIMER_REAL, $tick_size, $tick_size);
     
     while (1) {
-        my $fh = open_fifo($config);
-        process_fifo($config, $fh, \%current);
+        my $client = get_client($config);
+        process_client($config, $client, \%current);
     }
 }
 
