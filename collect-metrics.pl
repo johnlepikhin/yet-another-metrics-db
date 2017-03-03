@@ -83,8 +83,12 @@ sub update_config($) {
     eval {
         my $new_config = Config::Metrics::read($config->{general}->{config_path}) || die Config::IniPlain::errstr();
 
+        my $server_socket;
+        $server_socket = $config->{general}->{server_socket} if exists $config->{general}->{server_socket};
+
         delete $config->{$_} foreach keys %$config;
         $config->{$_} = $new_config->{$_} foreach keys %$new_config;
+        $config->{general}->{server_socket} = $server_socket if defined $server_socket;
     }
 }
 
