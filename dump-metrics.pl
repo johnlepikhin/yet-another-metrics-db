@@ -67,7 +67,7 @@ Path to configuration ini file
 
 =item B<--start-timestamp=<N>> or B<-s <N>>
 
-Start UNIX timestamp (in milliseconds!) to be extracted
+Start UNIX timestamp to be extracted
 
 =item B<--end-timestamp=<N>> or B<-e <N>>
 
