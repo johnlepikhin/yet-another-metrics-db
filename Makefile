@@ -1,4 +1,7 @@
 
+clean:
+	rm out/*
+
 out/collect-metrics:
 	pp -P -I ./ -o out/collect-metrics collect-metrics.pl
 
@@ -8,7 +11,7 @@ out/dump-metrics:
 out/register-metrics:
 	pp -P -I ./ -o out/register-metrics register-metrics.pl
 
-install: out/collect-metrics out/dump-metrics
+install: clean out/collect-metrics out/dump-metrics out/register-metrics
 	install out/collect-metrics ~/bin/
 	install out/dump-metrics ~/bin/
 	install out/register-metrics ~/bin/
