@@ -11,6 +11,8 @@ my $opt_config_path;
 my $opt_name;
 my $opt_datatype;
 my $opt_agregate_fn;
+my $opt_output_value_filter;
+
 my $opt_help;
 my $opt_man;
 
@@ -18,6 +20,7 @@ GetOptions('config|c=s' => \$opt_config_path
            , 'name|n=s' => \$opt_name
            , 'datatype|t=s' => \$opt_datatype
            , 'agregate-fn=s' => \$opt_agregate_fn
+           , 'output-value-filter=s' => \$opt_output_value_filter
            , 'help|?' => \$opt_help
            , 'man|?' => \$opt_man
     );
@@ -39,6 +42,7 @@ my $config = Config::Metrics::read($opt_config_path) || die Config::IniPlain::er
 my %values;
 
 $values{'agregate_fn'}=$opt_agregate_fn if defined $opt_agregate_fn;
+$values{'output_value_filter'}=$opt_output_value_filter if defined $opt_output_value_filter;
 
 Config::Metrics::add_metrics ($config, $opt_name, $opt_datatype, \%values);
 
@@ -71,6 +75,10 @@ Metrica datatype
 =item B<--agregate-fn>
 
 Metrica agregation function
+
+=item B<--output-value-filter>
+
+Filter values before saving
 
 =item B<--help>
 

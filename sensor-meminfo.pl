@@ -1,16 +1,22 @@
 #!/usr/bin/perl
 
-my $fifo = '/tmp/perl-metrics.fifo';
+use Sensor;
+use strict;
+use warnings;
 
-open $out, '>', $fifo || die "cannot open fifo: $fifo: $?";
-open $in, '/proc/meminfo' || die "cannot open /proc/meminfo: $?";
+open my $in, '/proc/meminfo' || die "cannot open /proc/meminfo: $?";
 
-print $out "METRICS 1\n";
-
+my %values;
 while (<$in>) {
     next if !/([^:]+):\s+(\d+)/;
-    print $out "value meminfo/$1 $2\n";
+    my $key = "meminfo/$1";
+    $values{$key}{value} = $2;
+    $values{$key}{datatype} = 'uint';
+    $values{$key}{sensor_options}{output_value_filter} = 'skip-zero';
 }
 
 close $in;
-close $out;
+
+my $config = Sensor::parse_opts();
+
+Sensor::safe_save($config, \%values);

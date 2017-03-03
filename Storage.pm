@@ -52,6 +52,8 @@ sub save_group($$$$$$) {
     my $directories = shift;
     my $tick = shift;
     my $floor_tick = shift;
+
+    return if !keys %$group_values;
     
     my $tick_size_ms = $config->{general}->{values}->{tick_size_ms};
 
@@ -90,23 +92,31 @@ sub save_current($$) {
     my $floor_tick = get_floor_first_filetick_of_tick($config, $tick);
 
     for my $group_id (0..$config->{general}->{max_group_id}) {
-        print "process group $group_id\n";
+        print "save group $group_id\n";
 
         my %group_values;
         
-        foreach (grep { /^metrics:/ && $config->{$_}->{group_id} == $group_id } keys %$config) {
-            my ($metrics_name) = $_ =~ /^metrics:(.*)/;
+        foreach my $section (grep { /^metrics:/ && $config->{$_}->{group_id} == $group_id } keys %$config) {
+            my ($metrics_name) = $section =~ /^metrics:(.*)/;
 
             my $add = sub ($) {
                 my $value = shift;
 
+                if (exists $config->{$section}->{values}->{output_value_filter}) {
+                    my $filter = $config->{$section}->{values}->{output_value_filter};
+
+                    if ($filter eq 'skip-zero') {
+                        return if $value == 0;
+                    }
+                }
+
                 $group_values{$metrics_name}{value} = $value;
-                $group_values{$metrics_name}{datatype} = $config->{$_}->{values}->{datatype};
-                $group_values{$metrics_name}{id_in_group} = $config->{$_}->{id_in_group};
+                $group_values{$metrics_name}{datatype} = $config->{$section}->{values}->{datatype};
+                $group_values{$metrics_name}{id_in_group} = $config->{$section}->{id_in_group};
             };
             
             if (exists $current->{$metrics_name}) {
-                my $agregate_fn = $config->{$_}->{values}->{agregate_fn};
+                my $agregate_fn = $config->{$section}->{values}->{agregate_fn};
                 
                 if ($agregate_fn eq 'take-last') {
                     $add->($current->{$metrics_name});

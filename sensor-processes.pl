@@ -1,21 +1,19 @@
 #!/usr/bin/perl
 
-my $fifo = '/tmp/perl-metrics.fifo';
-
-open $out, '>', $fifo || die "cannot open fifo: $fifo: $?";
-
-print $out "METRICS 1\n";
+use Sensor;
+use strict;
+use warnings;
 
 my $count = 0;
 my $count_R = 0;
 my $count_D = 0;
 my $max_RSS = 0;
 foreach my $file (grep { /\/\d+$/ } </proc/*>) {
-    open $in, "$file/status" || next;
+    open my $in, "$file/status" || next;
 
     while (<$in>) {
         $count++;
-        if (($k, $v) = $_ =~ /([^:]+):\s+(.+)/) {
+        if (my ($k, $v) = $_ =~ /([^:]+):\s+(.+)/) {
             if ($k eq 'State') {
                 if ($v =~ /^R/) {
                     $count_R++;
@@ -23,7 +21,7 @@ foreach my $file (grep { /\/\d+$/ } </proc/*>) {
                     $count_D++;
                 }
             } elsif ($k eq 'VmRSS') {
-                ($rss) = $v =~ /^(\d+)/;
+                my ($rss) = $v =~ /^(\d+)/;
                 $max_RSS = $rss if $rss > $max_RSS;
             }
         }
@@ -31,9 +29,20 @@ foreach my $file (grep { /\/\d+$/ } </proc/*>) {
     close $in;
 }
 
-print "value processes/count $count\n";
-print "value processes/count-status-R $count_R\n";
-print "value processes/count-status-D $count_D\n";
-print "value processes/max-RSS $max_RSS\n";
+my %values;
 
-close $out;
+$values{'processes/count'}{value} = $count;
+$values{'processes/count'}{datatype} = 'uint';
+
+$values{'processes/count-status-R'}{value} = $count_R;
+$values{'processes/count-status-R'}{datatype} = 'uint';
+
+$values{'processes/count-status-D'}{value} = $count_D;
+$values{'processes/count-status-D'}{datatype} = 'uint';
+
+$values{'processes/max-RSS'}{value} = $max_RSS;
+$values{'processes/max-RSS'}{datatype} = 'uint';
+
+my $config = Sensor::parse_opts();
+
+Sensor::safe_save($config, \%values);

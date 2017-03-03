@@ -65,6 +65,14 @@ sub check ($) {
                 $config->{$section}->{values}->{agregate_fn} = 'take-last';
             }
 
+            if (exists $config->{$section}->{values}->{output_value_filter}) {
+                my $filter = $config->{$section}->{values}->{output_value_filter};
+
+                if ($filter ne 'skip-zero') {
+                    return $config->_error("Unknown output_value_filter type '$filter' in section [metrics:$section]");
+                }
+            }
+
         }
     }
     return $config;
@@ -78,6 +86,11 @@ sub read ($) {
 
     $config->{general}->{config_path} = $file;
 
+    my @stat = stat $file;
+    
+    $config->{general}->{config_size} = $stat[7];
+    $config->{general}->{config_mtime} = $stat[9];
+
     return $config;
 }
 
@@ -88,15 +101,16 @@ sub add_metrics($$$$) {
     my $values = shift;
 
     my @keys = keys %$config;
-    print "== @keys\n";
     
     return if exists $config->{"metrics:$name"};
 
     open my $fh, '>>', $config->{general}->{config_path} || die "Cannot open '$config->{general}->{config_path}': $?";
 
     my $pairs = "datatype = $datatype\n";
-    foreach (sort keys %$values) {
-        $pairs .= "$_ = $values->{$_}\n";
+    if (defined $values) {
+        foreach (sort keys %$values) {
+            $pairs .= "$_ = $values->{$_}\n";
+        }
     }
     
     print $fh "\n[metrics:$name]\n\n$pairs\n";
