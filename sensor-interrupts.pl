@@ -21,7 +21,7 @@ while (<$in>) {
 
     for my $cpu (0..$cpus-1) {
         next if $#fields < $cpu;
-        my $key = "CPU$cpu:$descr";
+        my $key = "interrupt/CPU$cpu:$descr";
         $values{$key}{value} = $fields[$cpu];
         $values{$key}{datatype} = 'uint';
         $values{$key}{sensor_options}{output_value_filter} = 'skip-zero';

@@ -26,8 +26,8 @@ sub process ($$) {
         my @f = split /\s+/;
         next if @f < 6;
 
-        add("df-used-$prefix-$f[5]", $f[2]);
-        add("df-available-$prefix-$f[5]", $f[3]);
+        add("df/used/$prefix-$f[5]", $f[2]);
+        add("df/available/$prefix-$f[5]", $f[3]);
     }
 }
 
