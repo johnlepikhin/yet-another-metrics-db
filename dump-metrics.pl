@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 
-use Time::HiRes qw(setitimer ITIMER_REAL);
-
 use warnings;
 use strict;
 
@@ -9,7 +7,6 @@ use Getopt::Long;
 use Pod::Usage;
 use Config::Metrics;
 use Storage;
-use Data::Dumper;
 
 my $opt_config_path;
 my $opt_start_date;

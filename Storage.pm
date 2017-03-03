@@ -7,6 +7,7 @@ use strict;
 use File::Path;
 use Encode::Variable;
 use Exporter;
+use Time::HiRes;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 

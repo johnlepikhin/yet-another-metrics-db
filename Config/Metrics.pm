@@ -117,4 +117,31 @@ sub add_metrics($$$$) {
     close $fh;
 }
 
+sub update_config($) {
+    my $config = shift;
+
+    eval {
+        my $new_config = Config::Metrics::read($config->{general}->{config_path}) || die Config::IniPlain::errstr();
+
+        my $server_socket;
+        $server_socket = $config->{general}->{server_socket} if exists $config->{general}->{server_socket};
+
+        delete $config->{$_} foreach keys %$config;
+        $config->{$_} = $new_config->{$_} foreach keys %$new_config;
+        $config->{general}->{server_socket} = $server_socket if defined $server_socket;
+    }
+}
+
+sub update_config_if_changed($) {
+    my $config = shift;
+
+    my @stat = stat ($config->{general}->{config_path});
+
+    return if !@stat;
+
+    return if $config->{general}->{config_size} == $stat[7] && $config->{general}->{config_mtime} == $stat[9];
+
+    update_config ($config);
+}
+
 1;
