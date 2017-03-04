@@ -11,6 +11,7 @@ use Getopt::Long;
 use Pod::Usage;
 use Config::Metrics;
 use Storage;
+use Proc::Daemon;
 
 my $opt_config_path;
 my $opt_listen;
@@ -82,6 +83,8 @@ my $server = HTTP::Daemon->new(
     ) || die "Cannot start HTTP server: $!";
 
 print ("Server listens at " . $server->url . "\n");
+
+Proc::Daemon::Init;
 
 while (my $client = $server->accept) {
     while (my $req = $client->get_request) {

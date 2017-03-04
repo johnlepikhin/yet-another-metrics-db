@@ -11,6 +11,7 @@ use Pod::Usage;
 use Config::Metrics;
 use Storage;
 use IO::Socket::UNIX;
+use Proc::Daemon;
 
 require 5.008001;
 
@@ -137,6 +138,8 @@ if (!defined $opt_config_path) {
 }
 
 my $config = Config::Metrics::read($opt_config_path) || die Config::IniPlain::errstr();
+
+Proc::Daemon::Init;
 
 loop_fifo($config);
 
