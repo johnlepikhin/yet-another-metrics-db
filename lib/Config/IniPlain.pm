@@ -6,6 +6,7 @@ use warnings;
 use strict;
 use Exporter;
 use POSIX;
+use Fcntl qw(:flock SEEK_END);
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 
 $VERSION     = 1.00;
@@ -29,7 +30,9 @@ sub read {
     local $/     = undef;
 
     open( CFG, $encoding, $file ) or return $class->_error( "Failed to open file '$file' for reading: $!" );
+    flock(CFG, LOCK_EX) or die "Cannot lock $file";
     my $contents = <CFG>;
+    flock(CFG, LOCK_UN) or die "Cannot unlock $file";
     close( CFG );
 
     return $class -> _error("Reading from '$file' returned undef") if (! defined $contents);

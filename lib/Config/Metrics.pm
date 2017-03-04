@@ -5,6 +5,7 @@ use warnings;
 use strict;
 use Exporter;
 use Config::IniPlain;
+use Fcntl qw(:flock SEEK_END);
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 
 $VERSION     = 1.00;
@@ -105,6 +106,8 @@ sub add_metrics($$$$) {
     return if exists $config->{"metrics:$name"};
 
     open my $fh, '>>', $config->{general}->{config_path} || die "Cannot open '$config->{general}->{config_path}': $?";
+    flock($fh, LOCK_EX) or die "Cannot lock $config->{general}->{config_path}";
+
 
     my $pairs = "datatype = $datatype\n";
     if (defined $values) {
@@ -114,6 +117,7 @@ sub add_metrics($$$$) {
     }
     
     print $fh "\n[metrics:$name]\n\n$pairs\n";
+    flock($fh, LOCK_UN) or die "Cannot unlock $config->{general}->{config_path}";
     close $fh;
 }
 
