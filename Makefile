@@ -14,20 +14,21 @@ out/register-metrics:
 out/http-server-metrics:
 	pp -P -I ./ -o out/http-server-metrics http-server-metrics.pl
 
+
 out/sensor-df.pl:
-	pp -P -I ./ -o out/sensor-df.pl sensor-df.pl
+	pp -P -I ./ -o out/sensor-df.pl sensors/sensor-df.pl
 
 out/sensor-interrupts.pl:
-	pp -P -I ./ -o out/sensor-interrupts.pl sensor-interrupts.pl
+	pp -P -I ./ -o out/sensor-interrupts.pl sensors/sensor-interrupts.pl
 
 out/sensor-loadavg.pl:
-	pp -P -I ./ -o out/sensor-loadavg.pl sensor-loadavg.pl
+	pp -P -I ./ -o out/sensor-loadavg.pl sensors/sensor-loadavg.pl
 
 out/sensor-meminfo.pl:
-	pp -P -I ./ -o out/sensor-meminfo.pl sensor-meminfo.pl
+	pp -P -I ./ -o out/sensor-meminfo.pl sensors/sensor-meminfo.pl
 
 out/sensor-processes.pl:
-	pp -P -I ./ -o out/sensor-processes.pl sensor-processes.pl
+	pp -P -I ./ -o out/sensor-processes.pl sensors/sensor-processes.pl
 
 out: out/collect-metrics out/dump-metrics out/register-metrics out/sensor-df.pl out/sensor-interrupts.pl out/sensor-loadavg.pl \
 	out/sensor-meminfo.pl out/sensor-processes.pl out/http-server-metrics
