@@ -15,11 +15,13 @@ use Proc::Daemon;
 
 my $opt_config_path;
 my $opt_listen;
+my $opt_foreground;
 my $opt_help;
 my $opt_man;
 
 GetOptions('config|c=s' => \$opt_config_path
            , 'listen|l=s' => \$opt_listen
+           , 'foreground|f' => \$opt_foreground
            , 'help|?' => \$opt_help
            , 'man|?' => \$opt_man
     );
@@ -84,7 +86,7 @@ my $server = HTTP::Daemon->new(
 
 print ("Server listens at " . $server->url . "\n");
 
-Proc::Daemon::Init;
+Proc::Daemon::Init if !$opt_foreground;
 
 while (my $client = $server->accept) {
     while (my $req = $client->get_request) {
@@ -160,6 +162,10 @@ Path to configuration ini file
 =item B<--listen=<IP:port>> or B<-l IP:PORT>
 
 IP and port on which to listen.
+
+=item B<--foreground> or B<-f>
+
+Run in foreground
 
 =item B<--help>
 

@@ -89,9 +89,10 @@ sub clean_current($$) {
             if ($agregate_fn eq 'take-last') {
                 delete $current->{$_};
             } elsif ($agregate_fn eq 'numeric-diff') {
-                if (!exists $current->{$_}->{prev}) {
-                    delete $current->{$_};
-                }
+# Bug: we get no data at all when sensor provides data less frequently than clean_current() called
+#                if (!exists $current->{$_}->{prev}) {
+#                    delete $current->{$_};
+#                }
             }
         }
     }
@@ -118,10 +119,12 @@ sub loop_fifo($) {
 }
 
 my $opt_config_path;
+my $opt_foreground;
 my $opt_help;
 my $opt_man;
 
 GetOptions('config|c=s' => \$opt_config_path
+           , 'foreground|f' => \$opt_foreground
            , 'help|?' => \$opt_help
            , 'man|?' => \$opt_man
     );
@@ -139,7 +142,7 @@ if (!defined $opt_config_path) {
 
 my $config = Config::Metrics::read($opt_config_path) || die Config::IniPlain::errstr();
 
-Proc::Daemon::Init;
+Proc::Daemon::Init if !$opt_foreground;
 
 loop_fifo($config);
 
@@ -160,6 +163,10 @@ dump-metrics --config=<config file>
 =item B<--config=<...>>
 
 Path to configuration ini file
+
+=item B<--foreground> or B<-f>
+
+Run in foreground
 
 =item B<--help>
 
