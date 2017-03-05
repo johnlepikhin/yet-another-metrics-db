@@ -72,8 +72,9 @@ sub save_group($$$$$$) {
         . (Encode::Variable::uint8 $tick_offset)
         . (Encode::Variable::uint8 $group_mask);
 
-    foreach (sort {$group_values->{$a}->{id_in_group} <=> $group_values->{$b}->{id_in_group}} keys %$group_values) {
-        $record .= Encode::Variable::encode ($group_values->{$_}->{datatype}, $group_values->{$_}->{value});
+    foreach my $metrica (sort {$group_values->{$a}->{id_in_group} <=> $group_values->{$b}->{id_in_group}} keys %$group_values) {
+        my $v = Encode::Variable::encode ($group_values->{$metrica}->{datatype}, $group_values->{$metrica}->{value});
+        $record .= $v;
     }
 
     print $fh $record;
@@ -123,13 +124,13 @@ sub save_current($$) {
                     $add->($current->{$metrics_name});
 
                 } elsif ($agregate_fn eq 'numeric-diff') {
-                    if (exists $current->{$metrics_name}->{prev}) {
-                        if (exists $current->{$metrics_name}->{current}) {
-                            my $value = $current->{$metrics_name}->{current} - $current->{$metrics_name}->{prev};
-                            $add->($value);
-                        }
+                    if (exists $current->{$metrics_name}->{prev} && exists $current->{$metrics_name}->{current}) {
+                        my $value = $current->{$metrics_name}->{current} - $current->{$metrics_name}->{prev};
+                        $add->($value);
                     }
-                    $current->{$metrics_name}->{prev} = $current->{$metrics_name}->{current};
+                    if (exists $current->{$metrics_name}->{current}) {
+                        $current->{$metrics_name}->{prev} = $current->{$metrics_name}->{current};
+                    }
                     delete $current->{$metrics_name}->{current};
                 }
                 
@@ -205,6 +206,16 @@ sub read_uint($) {
     return $ret;
 }
 
+sub read_int($) {
+    my $fh = shift;
+
+    my $r = read_uint($fh);
+    my $v = $r >> 1;
+    $v = -$v if ($r & 1);
+
+    return $v;
+}
+
 sub read_file($$$$$) {
     my $config = shift;
     my $file = shift;
@@ -249,12 +260,15 @@ sub read_file($$$$$) {
 
                 next if $tick < $start_tick;
 
+                my $v;
                 if ($datatype eq 'uint') {
-                    my $v = read_uint($fh);
-                    $ret->{$timestamp}->{$metrics} = $v;
+                    $v = read_uint($fh);
+                } elsif ($datatype eq 'int') {
+                    $v = read_int($fh);
                 } else {
-                    die "cannot read datatype: $datatype\n";
+                    warn "cannot read datatype: $datatype\n";
                 }
+                $ret->{$timestamp}->{$metrics} = $v if defined $v;
             }
         };
         goto release_fh_return if $@;
