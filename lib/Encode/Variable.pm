@@ -14,6 +14,8 @@ $VERSION     = 1.00;
 sub uint8 ($) {
     my $v = shift;
 
+    die "uint8 < 0" if $v < 0;
+
     if ($v >= 2**56) {
         return sprintf "%c%c%c%c%c%c%c%c%c", 255
             , ($v >> 56), (($v >> 48) & 0xff), (($v >> 40) & 0xff), (($v >> 32) & 0xff), (($v >> 24) & 0xff), (($v >> 16) & 0xff), (($v >> 8) & 0xff), ($v & 0xff);
