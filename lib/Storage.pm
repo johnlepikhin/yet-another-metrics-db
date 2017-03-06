@@ -67,17 +67,21 @@ sub save_group($$$$$$) {
     my $tick_offset = $tick-$floor_tick;
     my $group_mask = get_group_bitmask($group_values);
 
-    my $record = 'M'
+    my $header = 'M'
         . (Encode::Variable::uint8 $version)
         . (Encode::Variable::uint8 $tick_offset)
         . (Encode::Variable::uint8 $group_mask);
 
+    my $values = '';
+
     foreach my $metrica (sort {$group_values->{$a}->{id_in_group} <=> $group_values->{$b}->{id_in_group}} keys %$group_values) {
         my $v = Encode::Variable::encode ($group_values->{$metrica}->{datatype}, $group_values->{$metrica}->{value});
-        $record .= $v;
+        $values .= $v;
     }
 
-    print $fh $record;
+    my $length = Encode::Variable::uint8 (length $values);
+
+    print $fh "$header$length$values";
     
     close ($fh);
 }
@@ -216,12 +220,13 @@ sub read_int($) {
     return $v;
 }
 
-sub read_file($$$$$) {
+sub read_file($$$$$$) {
     my $config = shift;
     my $file = shift;
     my $ret = shift;
     my $start_tick = shift;
     my $end_tick = shift;
+    my $header_filter_fn = shift;
 
     my $fh;
     if ($file->{path} =~ /.gz$/) {
@@ -238,15 +243,20 @@ sub read_file($$$$$) {
             my $record_version = read_uint($fh);
             my $tick_offset = read_uint($fh);
             my $group_mask = read_uint($fh);
+            my $values_length = read_uint($fh);
 
             my $tick = $file->{floor_tick} + $tick_offset;
+            my $tick_size_ms = $config->{general}->{values}->{tick_size_ms};
+            my $timestamp = $tick*$tick_size_ms;
+            
+            if (!$header_filter_fn->($record_version, $tick_offset, $group_mask, $values_length, $timestamp, $tick)) {
+                seek($fh, $values_length, 1);
+                return;
+            }
 
             goto release_fh_return if $record_version > $version;
             goto release_fh_return if $tick > $end_tick;
 
-            my $tick_size_ms = $config->{general}->{values}->{tick_size_ms};
-            my $timestamp = $tick*$tick_size_ms;
-            
             foreach my $key (sort { $config->{$a}->{id_in_group} <=> $config->{$b}->{id_in_group} }
                      grep { /^metrics:/ && $config->{$_}->{group_id} == $file->{group_id} }
                      keys %$config)
@@ -290,9 +300,24 @@ sub read_period($$$) {
 
     my $files = get_files_list($config, $start_tick, $end_tick);
 
+    my $filter = sub ($$$$$$) {
+        my $record_version = shift;
+        my $tick_offset = shift;
+        my $group_mask = shift;
+        my $values_length = shift;
+        my $timestamp = shift;
+        my $tick = shift;
+
+        if ($tick < $start_tick || $tick > $end_tick) {
+            return 0;
+        } else {
+            return 1;
+        }
+    };
+    
     my %r;
     foreach (@$files) {
-        read_file ($config, $_, \%r, $start_tick, $end_tick);
+        read_file ($config, $_, \%r, $start_tick, $end_tick, $filter);
     }
 
     return \%r;
