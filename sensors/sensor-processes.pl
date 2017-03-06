@@ -11,9 +11,9 @@ my $count_D = 0;
 my $max_RSS = 0;
 foreach my $file (grep { /\/\d+$/ } </proc/*>) {
     open my $in, "$file/status" || next;
+    $count++;
 
-    while (<$in>) {
-        $count++;
+    while ((defined (fileno ($in))) && ($_ = <$in>)) {
         if (my ($k, $v) = $_ =~ /([^:]+):\s+(.+)/) {
             if ($k eq 'State') {
                 if ($v =~ /^R/) {
