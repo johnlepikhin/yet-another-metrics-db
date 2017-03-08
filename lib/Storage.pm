@@ -8,6 +8,7 @@ use File::Path;
 use Encode::Variable;
 use Exporter;
 use Time::HiRes;
+use BinaryReader;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 
@@ -176,44 +177,24 @@ sub get_files_list($$$) {
     return \@files;
 }
 
-sub read_bytes($$) {
-    my $fh = shift;
-    my $len = shift;
-
-    my $r = '';
-    my $total_rd = 0;
-    while ($total_rd < $len) {
-        my $rd = read($fh, $r, $len-$total_rd, $total_rd);
-        die if !defined $rd;
-        $total_rd += $rd;
-    }
-
-    $r;
-}
-
 sub read_uint($) {
-    my $fh = shift;
+    my $r = BinaryReader::getByte $_[0];
 
-    my $r = read_bytes($fh, 1);
-
-    $r = unpack 'C', $r;
+    $r = ord $r;
 
     return $r if $r < 249;
 
-    $r = read_bytes($fh, $r-249+2);
     my $ret = 0;
-    for my $pos (0..length ($r)-1) {
-        my $byte = unpack 'C', substr($r, $pos, 1);
-        $ret |= $byte << 8*(length($r) - $pos - 1);
+    my $bytes = $r-249+2;
+    for my $byte (1..$bytes) {
+        $ret = ($ret << 8) | ord $_[0]->getByte();
     }
 
     return $ret;
 }
 
 sub read_int($) {
-    my $fh = shift;
-
-    my $r = read_uint($fh);
+    my $r = read_uint($_[0]);
     my $v = $r >> 1;
     $v = -$v if ($r & 1);
 
@@ -234,51 +215,52 @@ sub read_file($$$$$$) {
     } else {
         open ($fh, '<:raw', $file->{path}) || return;
     }
-    
-    local $/ = \1;
 
-    while (<$fh>) {
+    my $reader = BinaryReader->new($fh);
+
+    sub reader_of_datatype($) {
+        if ($_[0] eq 'uint') {
+            return \&read_uint;
+        } elsif ($_[0] eq 'int') {
+            return \&read_int;
+        } else {
+            warn "cannot read datatype: $_[0]\n";
+            return undef;
+        }
+    }
+    
+    my @keys = map { /^metrics:(.*)/; [$_, $1, $config->{$_}->{values}->{datatype}, reader_of_datatype($config->{$_}->{values}->{datatype})]; }
+    sort { $config->{$a}->{id_in_group} <=> $config->{$b}->{id_in_group} }
+    grep { /^metrics:/ && $config->{$_}->{group_id} == $file->{group_id} }
+    keys %$config;
+    
+    while ($_ = $reader->getByte()) {
         goto release_fh_return if $_ ne 'M';
+
         eval {
-            my $record_version = read_uint($fh);
-            my $tick_offset = read_uint($fh);
-            my $group_mask = read_uint($fh);
-            my $values_length = read_uint($fh);
+            my $record_version = read_uint($reader);
+            my $tick_offset = read_uint($reader);
+            my $group_mask = read_uint($reader);
+            my $values_length = read_uint($reader);
 
             my $tick = $file->{floor_tick} + $tick_offset;
-            my $tick_size_ms = $config->{general}->{values}->{tick_size_ms};
-            my $timestamp = $tick*$tick_size_ms;
+            my $timestamp = $tick*$config->{general}->{values}->{tick_size_ms};
             
             if (!$header_filter_fn->($record_version, $tick_offset, $group_mask, $values_length, $timestamp, $tick)) {
-                seek($fh, $values_length, 1);
-                return;
+                $reader->seekForward($values_length);
+                return; # eval
             }
 
             goto release_fh_return if $record_version > $version;
             goto release_fh_return if $tick > $end_tick;
 
-            foreach my $key (sort { $config->{$a}->{id_in_group} <=> $config->{$b}->{id_in_group} }
-                     grep { /^metrics:/ && $config->{$_}->{group_id} == $file->{group_id} }
-                     keys %$config)
-            {
-                my $bit = $config->{$key}->{id_in_group};
+            for (0..$#keys) {
+                my $bit = $config->{$keys[$_]->[0]}->{id_in_group};
                 next if !($group_mask & (1 << $bit));
 
-                my ($metrics) = $key =~ /^metrics:(.*)/;
-
-                my $datatype = $config->{$key}->{values}->{datatype};
-
-                next if $tick < $start_tick;
-
-                my $v;
-                if ($datatype eq 'uint') {
-                    $v = read_uint($fh);
-                } elsif ($datatype eq 'int') {
-                    $v = read_int($fh);
-                } else {
-                    warn "cannot read datatype: $datatype\n";
+                if (defined $keys[$_]->[3]) {
+                    $ret->{$timestamp}->{$keys[$_]->[1]} = $keys[$_]->[3]->($reader);
                 }
-                $ret->{$timestamp}->{$metrics} = $v if defined $v;
             }
         };
         goto release_fh_return if $@;
@@ -301,14 +283,7 @@ sub read_period($$$) {
     my $files = get_files_list($config, $start_tick, $end_tick);
 
     my $filter = sub ($$$$$$) {
-        my $record_version = shift;
-        my $tick_offset = shift;
-        my $group_mask = shift;
-        my $values_length = shift;
-        my $timestamp = shift;
-        my $tick = shift;
-
-        if ($tick < $start_tick || $tick > $end_tick) {
+        if ($_[5] < $start_tick || $_[5] > $end_tick) {
             return 0;
         } else {
             return 1;
