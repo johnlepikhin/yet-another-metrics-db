@@ -47,6 +47,19 @@ sub get_group_bitmask($) {
     return $mask;
 }
 
+sub save_index($$$$$) {
+    my ($config, $group_id, $tick_offset, $filepos, $path) = @_;
+
+    return if !exists $config->{general}->{values}->{keyrecord_every_tick}
+    || $config->{general}->{saved_records} % $config->{general}->{values}->{keyrecord_every_tick};
+
+    my $idx_path = "$path.idx";
+
+    open (my $fh, '>>:raw', $idx_path) || warn "Cannot open file '$idx_path' for append: $?";
+    print $fh (pack('LLL', $group_id, $tick_offset, $filepos));
+    close ($fh);
+}
+
 sub save_group($$$$$$) {
     my $config = shift;
     my $group_id = shift;
@@ -59,7 +72,8 @@ sub save_group($$$$$$) {
     
     my $tick_size_ms = $config->{general}->{values}->{tick_size_ms};
 
-    my $path = $directories . '/' . ($floor_tick*$tick_size_ms) . '-' . $group_id;
+    my $basepath = $directories . '/' . ($floor_tick*$tick_size_ms);
+    my $path = $basepath . '-' . $group_id;
 
     File::Path::make_path($directories);
 
@@ -82,15 +96,21 @@ sub save_group($$$$$$) {
 
     my $length = Encode::Variable::uint8 (length $values);
 
+    my $filepos = tell $fh;
+    
     print $fh "$header$length$values";
     
     close ($fh);
+
+    save_index($config, $group_id, $tick_offset, $filepos, $basepath);
 }
 
 sub save_current($$) {
     my $config = shift;
     my $current = shift;
 
+    $config->{general}->{saved_records}++;
+    
     my $tick_size_ms = $config->{general}->{values}->{tick_size_ms};
 
     my $tick = POSIX::floor (1000*Time::HiRes::time/$tick_size_ms);
@@ -162,12 +182,14 @@ sub get_files_list($$$) {
 
         for my $group_id (0..$config->{general}->{max_group_id}) {
             my $path = $dirs . '/' . ($floor_tick*$tick_size_ms) . '-' . $group_id;
+            my $index = $dirs . '/' . ($floor_tick*$tick_size_ms) . '.idx';
+            $index = undef if !-e $index;
             if (-e $path) {
-                push @files, {path => $path, floor_tick => $floor_tick, group_id => $group_id }
+                push @files, {path => $path, floor_tick => $floor_tick, group_id => $group_id, index => $index }
             } else {
                 $path .= '.gz';
                 if (-e $path) {
-                    push @files, {path => $path, floor_tick => $floor_tick, group_id => $group_id }
+                    push @files, {path => $path, floor_tick => $floor_tick, group_id => $group_id, index => $index }
                 }
             }
         }
@@ -201,13 +223,37 @@ sub read_int($) {
     return $v;
 }
 
-sub read_file($$$$$$) {
+sub get_offset_from_index($$$) {
+    my $file = shift;
+    my $indexes = shift;
+    my $start_tick = shift;
+
+    my $start_tick_offset = $start_tick - $file->{floor_tick};
+
+    return 0 if !@{$indexes->{$file->{index}}};
+
+    my $last_offset = 0;
+    my $last_tick_offset = 0;
+    foreach (@{$indexes->{$file->{index}}}) {
+        next if $_->[0] != $file->{group_id};
+
+        return $last_offset if $start_tick_offset < $_->[1];
+
+        $last_offset = $_->[2];
+        $last_tick_offset = $_->[1];
+    }
+
+    return $last_offset;
+}
+
+sub read_file($$$$$$$) {
     my $config = shift;
     my $file = shift;
     my $ret = shift;
     my $start_tick = shift;
     my $end_tick = shift;
     my $header_filter_fn = shift;
+    my $indexes = shift;
 
     my $fh;
     if ($file->{path} =~ /.gz$/) {
@@ -217,6 +263,10 @@ sub read_file($$$$$$) {
     }
 
     my $reader = BinaryReader->new($fh);
+
+    my $initial_offset = get_offset_from_index($file, $indexes, $start_tick);
+
+    $reader->seekForward($initial_offset) if $initial_offset;
 
     sub reader_of_datatype($) {
         if ($_[0] eq 'uint') {
@@ -271,6 +321,23 @@ sub read_file($$$$$$) {
     close $fh;
 }
 
+sub read_index($) {
+    my $info = shift;
+
+    return [] if !defined $info->{index};
+
+    open (my $fh, '<:raw', $info->{index}) || return [];
+    local $/ = \12;
+    my @r;
+    while (<$fh>) {
+        my @rec = unpack 'LLL', $_;
+        push @r, \@rec;
+    }
+    close $fh;
+
+    return \@r;
+}
+
 sub read_period($$$) {
     my $config = shift;
     my $start_date = shift;
@@ -289,10 +356,17 @@ sub read_period($$$) {
             return 1;
         }
     };
+
+    my %indexes;
+    foreach my $file (@$files) {
+        if (!exists $indexes{$file->{index}} && defined $file->{index}) {
+            $indexes{$file->{index}} = read_index($file);
+        }
+    }
     
     my %r;
     foreach (@$files) {
-        read_file ($config, $_, \%r, $start_tick, $end_tick, $filter);
+        read_file ($config, $_, \%r, $start_tick, $end_tick, $filter, \%indexes);
     }
 
     return \%r;

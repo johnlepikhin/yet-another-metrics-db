@@ -22,6 +22,8 @@ sub max($$) {
 sub check ($) {
     my $config = shift;
 
+    $config->{general}->{saved_records} = 0;
+
     $config->{general}->{values}->{tick_size_ms} ||= 60000;
     $config->{general}->{values}->{listen} || return $config->_error("Missing required parameter 'listen' in section [general]");
     $config->{general}->{values}->{tree_root} || return $config->_error("Missing required parameter 'tree_root' in section [general]");
