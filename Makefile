@@ -1,6 +1,6 @@
 
 all: out/collect-metrics out/dump-metrics out/register-metrics out/sensor-df.pl out/sensor-interrupts.pl out/sensor-loadavg.pl \
-	out/sensor-meminfo.pl out/sensor-processes.pl out/http-server-metrics
+	out/sensor-meminfo.pl out/sensor-processes.pl out/http-server-metrics out/second-cron out/run-one
 
 clean:
 	rm -f out/*
@@ -32,6 +32,16 @@ out/sensor-meminfo.pl:
 
 out/sensor-processes.pl:
 	pp -P -I ./lib -o out/sensor-processes.pl sensors/sensor-processes.pl
+
+out/second-cron:
+	cp utils/second-cron out/
+
+out/run-one:
+	cp utils/run-one out/
+
+dist: all
+	mkdir -p dist
+	tar czpf dist/metrics.tar.gz -C out .
 
 install: clean all
 	install out/collect-metrics ~/bin/
