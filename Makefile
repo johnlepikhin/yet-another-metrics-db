@@ -1,4 +1,7 @@
 
+all: out/collect-metrics out/dump-metrics out/register-metrics out/sensor-df.pl out/sensor-interrupts.pl out/sensor-loadavg.pl \
+	out/sensor-meminfo.pl out/sensor-processes.pl out/http-server-metrics
+
 clean:
 	rm -f out/*
 
@@ -30,10 +33,7 @@ out/sensor-meminfo.pl:
 out/sensor-processes.pl:
 	pp -P -I ./lib -o out/sensor-processes.pl sensors/sensor-processes.pl
 
-out: out/collect-metrics out/dump-metrics out/register-metrics out/sensor-df.pl out/sensor-interrupts.pl out/sensor-loadavg.pl \
-	out/sensor-meminfo.pl out/sensor-processes.pl out/http-server-metrics
-
-install: clean out
+install: clean all
 	install out/collect-metrics ~/bin/
 	install out/dump-metrics ~/bin/
 	install out/register-metrics ~/bin/
