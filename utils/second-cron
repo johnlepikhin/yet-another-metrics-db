@@ -2,6 +2,7 @@
 
 SLEEP=$1
 DIR=$2
+RUNONE=$3
 
 function fatal
 {
@@ -13,10 +14,10 @@ function usage
 {
     fatal "Usage:
 
-second-cron <sleep in seconds> <path to directory with scripts>"
+second-cron <sleep in seconds> <path to directory with scripts> <path to run-one script>"
 }
 
-if [ -z "$SLEEP" ] || [ -z "$DIR" ]; then
+if [ -z "$SLEEP" ] || [ -z "$DIR" ] || [ -z "$RUNONE" ]; then
     usage
 fi
 
@@ -24,10 +25,14 @@ if [ ! -d "$DIR" ]; then
     fatal "ERROR: '$DIR' doesn't exist or not a directory"
 fi
 
+if [ ! -x "$RUNONE" ]; then
+    fatal "ERROR: '$RUNONE' is not executable"
+fi
+
 while :; do
     for file in "$DIR"/*; do
         if [ -x "$file" ]; then
-            run-one "$file" &
+            $RUNONE "$file" &
         fi
     done
     sleep $SLEEP

@@ -230,7 +230,7 @@ sub get_offset_from_index($$$) {
 
     my $start_tick_offset = $start_tick - $file->{floor_tick};
 
-    return 0 if !@{$indexes->{$file->{index}}};
+    return 0 if !defined $file->{index} || !@{$indexes->{$file->{index}}};
 
     my $last_offset = 0;
     my $last_tick_offset = 0;
@@ -359,7 +359,7 @@ sub read_period($$$) {
 
     my %indexes;
     foreach my $file (@$files) {
-        if (!exists $indexes{$file->{index}} && defined $file->{index}) {
+        if (defined $file->{index} && !exists $indexes{$file->{index}}) {
             $indexes{$file->{index}} = read_index($file);
         }
     }
